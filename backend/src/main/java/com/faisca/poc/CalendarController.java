@@ -18,14 +18,14 @@ public class CalendarController {
 
     // Passo 1: Redireciona o usuario pro Google
     @GetMapping("/connect")
-    public void connect(HttpServletResponse response) throws IOException {
+    public void connect(HttpServletResponse response) throws IOException, java.security.GeneralSecurityException {
         String url = calendarService.getAuthorizationUrl();
         response.sendRedirect(url);
     }
 
     // Passo 2: Google volta pra ca com o codigo de autorizacao
     @GetMapping("/callback")
-    public void callback(@RequestParam String code, HttpServletResponse response) throws IOException {
+    public void callback(@RequestParam String code, HttpServletResponse response) throws IOException, java.security.GeneralSecurityException {
         calendarService.exchangeCodeForTokens(code);
         response.sendRedirect("http://localhost:5173?connected=true");
     }
