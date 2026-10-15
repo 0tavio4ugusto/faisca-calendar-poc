@@ -7,8 +7,9 @@ function App() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState({ summary: '', description: '', startDate: '', endDate: '' })
 
-  // Verifica se ja ta conectado (e se voltou do redirect do Google)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('connected') === 'true') {
@@ -16,52 +17,92 @@ function App() {
       setMessage('Conectado com sucesso!')
       window.history.replaceState({}, '', '/')
     }
-
-    fetch(`${API}/status`)
-      .then(res => res.json())
-      .then(data => setConnected(data.connected))
-      .catch(() => {})
+    fetch(`${API}/status`).then(res => res.json()).then(data => setConnected(data.connected)).catch(() => {})
   }, [])
 
-  // Carrega eventos
   const loadEvents = () => {
     setLoading(true)
     setMessage('')
     fetch(`${API}/events`)
       .then(res => res.json())
       .then(data => {
-        if (data.error) {
-          setMessage('Erro: ' + data.error)
-        } else {
-          setEvents(data)
-        }
+        if (data.error) { setMessage('Erro: ' + data.error) } else { setEvents(data) }
         setLoading(false)
       })
-      .catch(err => {
-        setMessage('Erro ao buscar eventos')
-        setLoading(false)
-      })
+      .catch(() => { setMessage('Erro ao buscar eventos'); setLoading(false) })
   }
 
-  // Cria evento de teste
-  const createTestEvent = () => {
+  const createEvent = () => {
+    if (!form.summary || !form.startDate || !form.endDate) {
+      setMessage('Preencha titulo, data inicio e data fim')
+      return
+    }
     setLoading(true)
-    setMessage('')
-    fetch(`${API}/events/test`, { method: 'POST' })
+    fetch(`${API}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
       .then(res => res.json())
       .then(data => {
-        if (data.error) {
-          setMessage('Erro: ' + data.error)
-        } else {
-          setMessage('Evento criado! ID: ' + data.eventId)
-          loadEvents() // Recarrega a lista
+        if (data.error) { setMessage('Erro: ' + data.error) } else {
+          setMessage('Evento criado!')
+          setForm({ summary: '', description: '', startDate: '', endDate: '' })
+          loadEvents()
         }
         setLoading(false)
       })
-      .catch(err => {
-        setMessage('Erro ao criar evento')
+      .catch(() => { setMessage('Erro ao criar evento'); setLoading(false) })
+  }
+
+  const updateEvent = () => {
+    if (!form.summary) { setMessage('Preencha o titulo'); return }
+    setLoading(true)
+    fetch(`${API}/events/${editing}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) { setMessage('Erro: ' + data.error) } else {
+          setMessage('Evento atualizado!')
+          setEditing(null)
+          setForm({ summary: '', description: '', startDate: '', endDate: '' })
+          loadEvents()
+        }
         setLoading(false)
       })
+      .catch(() => { setMessage('Erro ao atualizar evento'); setLoading(false) })
+  }
+
+  const deleteEvent = (eventId) => {
+    if (!confirm('Deletar este evento?')) return
+    setLoading(true)
+    fetch(`${API}/events/${eventId}`, { method: 'DELETE' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) { setMessage('Erro: ' + data.error) } else {
+          setMessage('Evento deletado!')
+          loadEvents()
+        }
+        setLoading(false)
+      })
+      .catch(() => { setMessage('Erro ao deletar evento'); setLoading(false) })
+  }
+
+  const startEdit = (ev) => {
+    setEditing(ev.id)
+    setForm({
+      summary: ev.summary || '',
+      description: '',
+      startDate: ev.start || '',
+      endDate: ev.end || ''
+    })
+  }
+
+  const handleSubmit = () => {
+    if (editing) { updateEvent() } else { createEvent() }
   }
 
   return (
@@ -72,21 +113,41 @@ function App() {
       {!connected ? (
         <div className="section">
           <p>Conecte sua conta Google para sincronizar eventos.</p>
-          <a href={`${API}/connect`} className="btn btn-primary">
-            Conectar Google Calendar
-          </a>
+          <a href={`${API}/connect`} className="btn btn-primary">Conectar Google Calendar</a>
         </div>
       ) : (
         <div className="section">
           <p className="status connected">Conectado ao Google Calendar</p>
 
+          {/* Formulario de criar/editar */}
+          <div className="form-card">
+            <h3>{editing ? 'Editar Evento' : 'Criar Evento'}</h3>
+            <input placeholder="Titulo" value={form.summary} onChange={e => setForm({...form, summary: e.target.value})} />
+            <input placeholder="Descricao (opcional)" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+            <div className="form-row">
+              <div>
+                <label>Data inicio</label>
+                <input type="date" value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})} />
+              </div>
+              <div>
+                <label>Data fim</label>
+                <input type="date" value={form.endDate} onChange={e => setForm({...form, endDate: e.target.value})} />
+              </div>
+            </div>
+            <div className="form-actions">
+              <button onClick={handleSubmit} disabled={loading} className="btn btn-green">
+                {editing ? 'Salvar' : 'Criar'}
+              </button>
+              {editing && (
+                <button onClick={() => { setEditing(null); setForm({ summary: '', description: '', startDate: '', endDate: '' }) }} className="btn btn-gray">
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="actions">
-            <button onClick={createTestEvent} disabled={loading} className="btn btn-green">
-              Criar Evento de Teste
-            </button>
-            <button onClick={loadEvents} disabled={loading} className="btn btn-blue">
-              Listar Eventos
-            </button>
+            <button onClick={loadEvents} disabled={loading} className="btn btn-blue">Listar Eventos</button>
           </div>
 
           {message && <p className="message">{message}</p>}
@@ -96,8 +157,14 @@ function App() {
               <h3>Proximos Eventos ({events.length})</h3>
               {events.map(ev => (
                 <div key={ev.id} className="event-card">
-                  <strong>{ev.summary}</strong>
-                  <span>{ev.start}</span>
+                  <div className="event-info">
+                    <strong>{ev.summary}</strong>
+                    <span>{ev.start}</span>
+                  </div>
+                  <div className="event-actions">
+                    <button onClick={() => startEdit(ev)} className="btn-small btn-edit">Editar</button>
+                    <button onClick={() => deleteEvent(ev.id)} className="btn-small btn-delete">Deletar</button>
+                  </div>
                 </div>
               ))}
             </div>

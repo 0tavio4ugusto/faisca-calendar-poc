@@ -128,23 +128,51 @@ public class CalendarService {
 
     // Cria um evento de teste
     public String createTestEvent() throws IOException, GeneralSecurityException {
+        return createEvent("[POC] Revisao de Projeto - Faisca Arquitetura",
+                "Evento de teste criado pela POC.",
+                LocalDate.now().plusDays(1).toString(),
+                LocalDate.now().plusDays(2).toString());
+    }
+
+    // Cria evento com dados customizados
+    public String createEvent(String summary, String description, String startDate, String endDate) throws IOException, GeneralSecurityException {
         if (!isConnected()) throw new RuntimeException("Nao conectado ao Google Calendar");
 
         Calendar calendar = getCalendarService();
 
-        LocalDate tomorrow = LocalDate.now().plusDays(1);
-        LocalDate dayAfter = tomorrow.plusDays(1);
-
         Event event = new Event()
-                .setSummary("[POC] Revisao de Projeto - Faisca Arquitetura")
-                .setDescription("Evento de teste criado pela POC de integracao do Google Calendar com o Faisca Arquitetura.")
-                .setStart(new EventDateTime()
-                        .setDate(new DateTime(tomorrow.format(DateTimeFormatter.ISO_LOCAL_DATE))))
-                .setEnd(new EventDateTime()
-                        .setDate(new DateTime(dayAfter.format(DateTimeFormatter.ISO_LOCAL_DATE))));
+                .setSummary(summary)
+                .setDescription(description != null ? description : "")
+                .setStart(new EventDateTime().setDate(new DateTime(startDate)))
+                .setEnd(new EventDateTime().setDate(new DateTime(endDate)));
 
         Event created = calendar.events().insert("primary", event).execute();
         System.out.println("Evento criado: " + created.getHtmlLink());
         return created.getId();
+    }
+
+    // Atualiza um evento existente
+    public void updateEvent(String eventId, String summary, String description, String startDate, String endDate) throws IOException, GeneralSecurityException {
+        if (!isConnected()) throw new RuntimeException("Nao conectado ao Google Calendar");
+
+        Calendar calendar = getCalendarService();
+        Event event = calendar.events().get("primary", eventId).execute();
+
+        if (summary != null) event.setSummary(summary);
+        if (description != null) event.setDescription(description);
+        if (startDate != null) event.setStart(new EventDateTime().setDate(new DateTime(startDate)));
+        if (endDate != null) event.setEnd(new EventDateTime().setDate(new DateTime(endDate)));
+
+        calendar.events().update("primary", eventId, event).execute();
+        System.out.println("Evento atualizado: " + eventId);
+    }
+
+    // Deleta um evento
+    public void deleteEvent(String eventId) throws IOException, GeneralSecurityException {
+        if (!isConnected()) throw new RuntimeException("Nao conectado ao Google Calendar");
+
+        Calendar calendar = getCalendarService();
+        calendar.events().delete("primary", eventId).execute();
+        System.out.println("Evento deletado: " + eventId);
     }
 }
