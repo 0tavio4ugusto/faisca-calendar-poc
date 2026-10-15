@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import com.google.api.client.http.HttpRequestInitializer;
 import java.util.*;
 
 @Service
@@ -81,22 +82,16 @@ public class CalendarService {
     }
 
     // Cria o objeto Calendar pra fazer requisicoes
-    private Calendar getCalendarService() throws IOException, GeneralSecurityException {
-        com.google.api.client.auth.oauth2.Credential credential =
-                new com.google.api.client.auth.oauth2.Credential.Builder(
-                        com.google.api.client.http.BearerToken.authorizationHeaderAccessMethod()
-                ).setTransport(new NetHttpTransport())
-                 .setJsonFactory(GsonFactory.getDefaultInstance())
-                 .setClientAuthentication(
-                         new com.google.api.client.http.BasicAuthentication(clientId, clientSecret))
-                 .build()
-                 .setAccessToken(accessToken)
-                 .setRefreshToken(refreshToken);
+    private Calendar getCalendarService() {
+        final String token = this.accessToken;
+        HttpRequestInitializer requestInitializer = request -> {
+            request.getHeaders().setAuthorization("Bearer " + token);
+        };
 
         return new Calendar.Builder(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance(),
-                credential
+                requestInitializer
         ).setApplicationName("Faisca Arquitetura POC").build();
     }
 
