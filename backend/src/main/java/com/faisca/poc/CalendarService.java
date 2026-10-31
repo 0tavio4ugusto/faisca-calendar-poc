@@ -103,7 +103,7 @@ public class CalendarService {
         DateTime now = new DateTime(System.currentTimeMillis());
 
         Events events = calendar.events().list("primary")
-                .setMaxResults(10)
+                .setMaxResults(50)
                 .setTimeMin(now)
                 .setOrderBy("startTime")
                 .setSingleEvents(true)
@@ -111,9 +111,12 @@ public class CalendarService {
 
         List<Map<String, String>> result = new ArrayList<>();
         for (Event event : events.getItems()) {
+            String summary = event.getSummary() != null ? event.getSummary() : "";
+            if (isIgnoredEvent(summary)) continue;
+            if (result.size() >= 10) break;
             Map<String, String> item = new LinkedHashMap<>();
             item.put("id", event.getId());
-            item.put("summary", event.getSummary());
+            item.put("summary", summary);
             item.put("start", event.getStart().getDateTime() != null
                     ? event.getStart().getDateTime().toString()
                     : event.getStart().getDate().toString());
@@ -124,6 +127,14 @@ public class CalendarService {
             result.add(item);
         }
         return result;
+    }
+
+    // Ignora eventos de aniversario ("Parabens!") que o Google cria como recorrentes
+    private boolean isIgnoredEvent(String summary) {
+        String normalized = java.text.Normalizer
+                .normalize(summary.toLowerCase(), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return normalized.contains("parabens");
     }
 
     // Cria um evento de teste
