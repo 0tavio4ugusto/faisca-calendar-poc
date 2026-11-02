@@ -95,28 +95,40 @@ public class CalendarService {
         ).setApplicationName("Faisca Arquitetura POC").build();
     }
 
-    // Lista os proximos 10 eventos
+    // Lista os proximos eventos (e os recentes, para nao sumirem os cards)
     public List<Map<String, String>> listEvents() throws IOException, GeneralSecurityException {
         if (!isConnected()) throw new RuntimeException("Nao conectado ao Google Calendar");
 
         Calendar calendar = getCalendarService();
-        DateTime now = new DateTime(System.currentTimeMillis());
+        // Janela: ultimos 30 dias ate o futuro — eventos criados com datas recentes
+        // continuam aparecendo como cards em vez de sumirem da listagem.
+        DateTime timeMin = new DateTime(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000);
 
         Events events = calendar.events().list("primary")
                 .setMaxResults(50)
-                .setTimeMin(now)
+                .setTimeMin(timeMin)
                 .setOrderBy("startTime")
                 .setSingleEvents(true)
                 .execute();
 
-        List<Map<String, String>> result = new ArrayList<>();
+        long todayStart = LocalDate.now()
+                .atStartOfDay(java.time.ZoneId.systemDefault())
+                .toInstant().toEpochMilli();
+
+        // A query vem ordenada por inicio (asc). Separa em futuros (de hoje em diante)
+        // e passados, para priorizar os futuros sem cortar os recentes.
+        List<Map<String, String>> upcoming = new ArrayList<>();
+        List<Map<String, String>> past = new ArrayList<>();
         for (Event event : events.getItems()) {
             String summary = event.getSummary() != null ? event.getSummary() : "";
             if (isIgnoredEvent(summary)) continue;
-            if (result.size() >= 10) break;
+            long startMillis = event.getStart().getDateTime() != null
+                    ? event.getStart().getDateTime().getValue()
+                    : event.getStart().getDate().getValue();
             Map<String, String> item = new LinkedHashMap<>();
             item.put("id", event.getId());
             item.put("summary", summary);
+            item.put("description", event.getDescription() != null ? event.getDescription() : "");
             item.put("start", event.getStart().getDateTime() != null
                     ? event.getStart().getDateTime().toString()
                     : event.getStart().getDate().toString());
@@ -124,6 +136,17 @@ public class CalendarService {
                     event.getEnd().getDateTime() != null
                             ? event.getEnd().getDateTime().toString()
                             : event.getEnd().getDate().toString()) : "");
+            (startMillis >= todayStart ? upcoming : past).add(item);
+        }
+
+        List<Map<String, String>> result = new ArrayList<>();
+        for (Map<String, String> item : upcoming) {
+            if (result.size() >= 10) break;
+            result.add(item);
+        }
+        Collections.reverse(past); // mais recentes primeiro
+        for (Map<String, String> item : past) {
+            if (result.size() >= 10) break;
             result.add(item);
         }
         return result;
@@ -149,6 +172,8 @@ public class CalendarService {
     public String createEvent(String summary, String description, String startDate, String endDate) throws IOException, GeneralSecurityException {
         if (!isConnected()) throw new RuntimeException("Nao conectado ao Google Calendar");
 
+        endDate = normalizeEndDate(startDate, endDate);
+
         Calendar calendar = getCalendarService();
 
         Event event = new Event()
@@ -166,16 +191,32 @@ public class CalendarService {
     public void updateEvent(String eventId, String summary, String description, String startDate, String endDate) throws IOException, GeneralSecurityException {
         if (!isConnected()) throw new RuntimeException("Nao conectado ao Google Calendar");
 
+        if (startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()) {
+            endDate = normalizeEndDate(startDate, endDate);
+        }
+
         Calendar calendar = getCalendarService();
         Event event = calendar.events().get("primary", eventId).execute();
 
         if (summary != null) event.setSummary(summary);
         if (description != null) event.setDescription(description);
-        if (startDate != null) event.setStart(new EventDateTime().setDate(new DateTime(startDate)));
-        if (endDate != null) event.setEnd(new EventDateTime().setDate(new DateTime(endDate)));
+        if (startDate != null && !startDate.isEmpty()) event.setStart(new EventDateTime().setDate(new DateTime(startDate)));
+        if (endDate != null && !endDate.isEmpty()) event.setEnd(new EventDateTime().setDate(new DateTime(endDate)));
 
         calendar.events().update("primary", eventId, event).execute();
         System.out.println("Evento atualizado: " + eventId);
+    }
+
+    // Normaliza a data de fim do evento de dia inteiro: o Google trata o fim como
+    // exclusivo (start + 1 dia), entao inicio == fim vira um evento de um dia real.
+    // Tambem valida que a data de fim nao vem antes do inicio.
+    private String normalizeEndDate(String startDate, String endDate) {
+        LocalDate start = LocalDate.parse(startDate);
+        LocalDate end = LocalDate.parse(endDate);
+        if (end.isBefore(start)) {
+            throw new IllegalArgumentException("A data de fim deve ser igual ou posterior a data de inicio");
+        }
+        return end.equals(start) ? start.plusDays(1).toString() : endDate;
     }
 
     // Deleta um evento

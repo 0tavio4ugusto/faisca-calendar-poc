@@ -11,8 +11,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/calendar")
-@CrossOrigin(origins = "http://localhost:5174")
+@CrossOrigin(origins = CalendarController.FRONTEND_URL)
 public class CalendarController {
+
+    static final String FRONTEND_URL = "http://localhost:5174";
 
     @Autowired
     private CalendarService calendarService;
@@ -28,7 +30,7 @@ public class CalendarController {
     @GetMapping("/callback")
     public void callback(@RequestParam String code, HttpServletResponse response) throws IOException, GeneralSecurityException {
         calendarService.exchangeCodeForTokens(code);
-        response.sendRedirect("http://localhost:5173?connected=true");
+        response.sendRedirect(FRONTEND_URL + "?connected=true");
     }
 
     // Verifica se ja ta conectado

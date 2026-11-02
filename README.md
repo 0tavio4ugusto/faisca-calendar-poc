@@ -20,7 +20,7 @@
    - **Create Credentials** → **OAuth client ID**
    - Application type: **Web application**
    - Name: `Faisca POC`
-   - Authorized redirect URIs: **Add URI** → `http://localhost:8080/api/calendar/callback`
+   - Authorized redirect URIs: **Add URI** → `http://localhost:8081/api/calendar/callback`
    - **Create**
 8. Copie o **Client ID** e **Client Secret**
 
@@ -46,7 +46,7 @@ cd backend
 mvn spring-boot:run
 ```
 
-Backend rodando em: http://localhost:8080
+Backend rodando em: http://localhost:8081
 
 ## Passo 4: Rodar o Frontend
 
@@ -57,11 +57,11 @@ npm install
 npm run dev
 ```
 
-Frontend rodando em: http://localhost:5173
+Frontend rodando em: http://localhost:5174
 
 ## Passo 5: Testar
 
-1. Abra http://localhost:5173
+1. Abra http://localhost:5174
 2. Clique em **Conectar Google Calendar**
 3. Faca login com sua conta Google
 4. Autorize o acesso

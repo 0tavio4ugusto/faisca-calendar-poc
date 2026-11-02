@@ -71,6 +71,10 @@ function App() {
       setMessage({ text: 'Preencha título, data de início e data de fim', type: 'error' })
       return
     }
+    if (newForm.endDate < newForm.startDate) {
+      setMessage({ text: 'A data de fim deve ser igual ou posterior à data de início', type: 'error' })
+      return
+    }
     setLoading(true)
     fetch(`${API}/events`, {
       method: 'POST',
@@ -112,6 +116,10 @@ function App() {
   const saveEdit = () => {
     if (!editForm.summary) {
       setMessage({ text: 'Preencha o título', type: 'error' })
+      return
+    }
+    if (editForm.startDate && editForm.endDate && editForm.endDate < editForm.startDate) {
+      setMessage({ text: 'A data de fim deve ser igual ou posterior à data de início', type: 'error' })
       return
     }
     // descrição só é enviada se preenchida, para não apagar a existente
