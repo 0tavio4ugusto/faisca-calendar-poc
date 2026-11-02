@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const API = 'http://localhost/api/calendar'
+const API = 'http://localhost:8081/api/calendar'
 
 const EMPTY_FORM = { summary: '', description: '', startDate: '', endDate: '' }
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
